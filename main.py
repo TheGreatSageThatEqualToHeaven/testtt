@@ -50,18 +50,18 @@ def generate_hwid(user_id):
     random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
     return f"@{user_id}-{random_suffix}"
 
-def redeem_key(key, user_id, hwid):
-    """Redeem a key for a user and store HWID."""
+def redeem_key_without_hwid(key, user_id):
+    """Redeem a key for a user but without storing the HWID initially."""
     keys = load_json(KEYS_FILE)
     users = load_json(USERS_FILE)
     used_keys = load_json(USED_KEYS_FILE)
 
     if key in keys:
         if keys[key] == "Key not redeemed yet":
-            # Assign the key to the user and store HWID
+            # Assign the key to the user but do not store HWID yet
             keys[key] = {
                 "redeemed_by": f"@{user_id}",
-                "hwid": hwid
+                "hwid": None  # HWID will be added later
             }
             users[user_id] = key
 
@@ -78,15 +78,17 @@ def redeem_key(key, user_id, hwid):
             return False  # Key already redeemed
     return False  # Key does not exist
 
-def update_key_hwid(key, hwid):
-    """Update the HWID for a redeemed key."""
+def update_key_hwid_after_confirmation(key, hwid):
+    """Update the HWID for a redeemed key after confirmation by user 1273044266347663395."""
     keys = load_json(KEYS_FILE)
 
     if key in keys:
         if isinstance(keys[key], dict):
-            keys[key]['hwid'] = hwid
-            save_json(KEYS_FILE, keys)
-            return True
+            current_hwid = keys[key].get('hwid')
+            if current_hwid is None:  # HWID only updated if not already set
+                keys[key]['hwid'] = hwid
+                save_json(KEYS_FILE, keys)
+                return True
     return False
 
 def is_buyer(ctx):
@@ -138,20 +140,16 @@ async def on_message(message):
             client_id = client_id_match.group(1)
             script_key = script_key_match.group(1)
 
-            # Check if the key is redeemed
+            # Check if the key is already redeemed and hwid needs to be added
             keys = load_json(KEYS_FILE)
             key_data = keys.get(script_key)
 
-            if key_data == "Key not redeemed yet":
-                # The key is not redeemed yet, so redeem it and store the information
-                hwid = client_id  # Client ID will be used as HWID
-                keys[script_key] = {
-                    "redeemed_by": f"@{user}",
-                    "hwid": hwid
-                }
-
-                # Save updated data
-                save_json(KEYS_FILE, keys)
+            if key_data and key_data.get("hwid") is None:
+                # Add HWID to the key after confirmation
+                if update_key_hwid_after_confirmation(script_key, client_id):
+                    await message.channel.send(f"HWID for key {script_key} has been updated.")
+                else:
+                    await message.channel.send(f"Key {script_key} already has a HWID or is not valid.")
 
     # Process other commands
     await bot.process_commands(message)
@@ -226,7 +224,7 @@ async def resethwid(ctx):
     if user_id in keys:
         key = keys[user_id]
         if isinstance(key, dict):
-            key['hwid'] = generate_hwid(user_id)  # Reset HWID for the key
+            key['hwid'] = None  # Remove HWID for the key
 
     # Generate and store a new HWID for the user
     new_hwid = generate_hwid(user_id)
@@ -274,17 +272,9 @@ async def redeemkey(ctx, key: str):
         await ctx.send(f'Failed to redeem key {key}. It may be invalid or already used.')
         return
 
-    # Ensure the user has an HWID or generate one if needed
-    hwid = user_hwids.get(user_id)
-    if hwid is None:
-        # Generate and store a new HWID for the user if it doesn't exist
-        hwid = generate_hwid(user_id)
-        user_hwids[user_id] = hwid
-        save_json(HWIDS_FILE, user_hwids)
-
-    # Redeem the key
-    if redeem_key(key, user_id, hwid):
-        await ctx.send(f'Key {key} successfully redeemed!')
+    # Redeem the key but do not store the HWID yet
+    if redeem_key_without_hwid(key, user_id):
+        await ctx.send(f'Key {key} successfully redeemed! Awaiting HWID confirmation.')
     else:
         await ctx.send(f'Failed to redeem key {key}. It may be invalid or already used.')
 
@@ -299,7 +289,8 @@ async def keyinfo(ctx, key: str):
         if isinstance(key_data, dict):
             redeemed_by = key_data["redeemed_by"]
             hwid = key_data["hwid"]
-            await ctx.send(f'Key: {key}\nRedeemed by: {redeemed_by}\nHWID: {hwid}')
+            hwid_status = hwid if hwid else "Not yet confirmed"
+            await ctx.send(f'Key: {key}\nRedeemed by: {redeemed_by}\nHWID: {hwid_status}')
         else:
             await ctx.send(f'Key: {key} has not been redeemed yet.')
     else:
