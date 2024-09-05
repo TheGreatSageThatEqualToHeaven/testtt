@@ -14,7 +14,10 @@
         "hwid": "@1185234311872532576-3TUGHT9R"
     },
     "69957337130": "Key not redeemed yet",
-    "97471501392": "Key not redeemed yet",
+    "97471501392": {
+        "redeemed_by": "@645601772047695893",
+        "hwid": "@645601772047695893-ITU4FU4Y"
+    },
     "87899216829": "Key not redeemed yet",
     "91978553010": "Key not redeemed yet",
     "66343005557": "Key not redeemed yet",
