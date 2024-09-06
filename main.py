@@ -177,16 +177,20 @@ async def clear(ctx, amount: int):
 @bot.command()
 @buyer_required()
 async def hwid(ctx):
-    """Returns the HWID for the key the user redeemed."""
+    """Returns the HWID associated with the key the user redeemed."""
     user_id = str(ctx.author.id)
-    user_hwids = load_json(HWIDS_FILE)
+    users = load_json(USERS_FILE)
     keys = load_json(KEYS_FILE)
-    key = keys.get(user_hwids.get(user_id))
 
-    if key and key.get("hwid"):
-        await ctx.send(f'Your HWID for the redeemed key is: {key["hwid"]}')
+    if user_id in users:
+        key = users[user_id]
+        key_data = keys.get(key)
+        if key_data and key_data.get("hwid"):
+            await ctx.send(f'Your HWID for key {key} is: {key_data["hwid"]}')
+        else:
+            await ctx.send('HWID has not been set for your key.')
     else:
-        await ctx.send('You have not redeemed a key or the HWID is not set.')
+        await ctx.send('You have not redeemed any key.')
 
 @bot.command()
 @buyer_required()
@@ -261,20 +265,16 @@ async def resetcooldown(ctx, member: discord.Member):
 @bot.command()
 @admin_required()
 async def generatekeys(ctx, num_keys: int):
-    """Generates a number of random script keys."""
+    """Generates a number of random script keys and resets the existing keys."""
     if num_keys < 1:
         await ctx.send("Please provide a valid number of keys to generate.")
         return
 
     # Generate new keys
-    keys = load_json(KEYS_FILE)
     new_keys = generate_keys(num_keys)
 
-    # Merge new keys with existing keys
-    keys.update(new_keys)
-
-    # Save the updated key list
-    save_json(KEYS_FILE, keys)
+    # Save the new keys and reset the existing ones
+    save_json(KEYS_FILE, new_keys)
 
     # Send the generated keys to the admin
     for key in new_keys.keys():
