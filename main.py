@@ -43,7 +43,9 @@ def generate_keys(num_keys):
     keys = {}
     for _ in range(num_keys):
         key = ''.join(random.choices(string.digits, k=11))
-        keys[key] = "Key not redeemed yet"
+        keys[key] = {
+            "status": "not redeemed"
+        }
     return keys
 
 def generate_hwid(user_id):
@@ -58,9 +60,10 @@ def redeem_key_without_hwid(key, user_id):
     used_keys = load_json(USED_KEYS_FILE)
 
     if key in keys:
-        if keys[key] == "Key not redeemed yet":
+        if keys[key]["status"] == "not redeemed":
             # Assign the key to the user but do not store HWID yet
             keys[key] = {
+                "status": "redeemed",
                 "redeemed_by": f"@{user_id}",
                 "hwid": None  # HWID will be added later
             }
@@ -161,7 +164,7 @@ async def hello(ctx):
     await ctx.send('Hello!')
 
 @bot.command()
-@buyer_required()
+@admin_required()
 async def clear(ctx, amount: int):
     """Deletes a specified number of messages."""
     if amount < 1 or amount > 100:
@@ -174,21 +177,16 @@ async def clear(ctx, amount: int):
 @bot.command()
 @buyer_required()
 async def hwid(ctx):
-    """Returns a unique HWID for the user."""
+    """Returns the HWID for the key the user redeemed."""
     user_id = str(ctx.author.id)
     user_hwids = load_json(HWIDS_FILE)
+    keys = load_json(KEYS_FILE)
+    key = keys.get(user_hwids.get(user_id))
 
-    # Check if the user already has an HWID
-    if user_id not in user_hwids:
-        # Generate and store a new HWID for the user
-        hwid = generate_hwid(user_id)
-        user_hwids[user_id] = hwid
-        save_json(HWIDS_FILE, user_hwids)
+    if key and key.get("hwid"):
+        await ctx.send(f'Your HWID for the redeemed key is: {key["hwid"]}')
     else:
-        # Retrieve the existing HWID
-        hwid = user_hwids[user_id]
-
-    await ctx.send(f'Your HWID is: {hwid}')
+        await ctx.send('You have not redeemed a key or the HWID is not set.')
 
 @bot.command()
 @buyer_required()
@@ -289,20 +287,6 @@ async def dumpkeys(ctx):
     keys = load_json(KEYS_FILE)
     message = "\n".join([f"{key}: {value}" for key, value in keys.items()])
     await ctx.author.send(f"Here are the current keys:\n{message}")
-
-@bot.command()
-@admin_required()
-async def resetkeys(ctx):
-    """Reset all keys to 'not redeemed' status."""
-    keys = load_json(KEYS_FILE)
-
-    for key in keys:
-        keys[key] = {
-            "status": "not redeemed"
-        }
-
-    save_json(KEYS_FILE, keys)
-    await ctx.send('All keys have been reset to "not redeemed".')
 
 # Run the bot with your secret token
 if __name__ == "__main__":
