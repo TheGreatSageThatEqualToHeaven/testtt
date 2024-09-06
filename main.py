@@ -25,6 +25,11 @@ USED_KEYS_FILE = 'usedkeys.json'
 BUYER_ROLE_ID = 1272776413908308041  # Replace with your actual Buyer role ID
 ADMIN_ROLE_ID = 1272804155433422931  # Role ID that can reset cooldowns
 
+def initialize_file(file_path, default_data):
+    """Initialize a JSON file with default data if it does not exist."""
+    if not os.path.exists(file_path):
+        save_json(file_path, default_data)
+
 def load_json(file_path):
     """Load JSON data from a file."""
     try:
@@ -43,7 +48,9 @@ def generate_keys(num_keys):
     keys = {}
     for _ in range(num_keys):
         key = ''.join(random.choices(string.digits, k=11))
-        keys[key] = "Key not redeemed yet"
+        keys[key] = {
+            "status": "not redeemed"
+        }
     return keys
 
 def generate_hwid(user_id):
@@ -58,9 +65,10 @@ def redeem_key_without_hwid(key, user_id):
     used_keys = load_json(USED_KEYS_FILE)
 
     if key in keys:
-        if keys[key] == "Key not redeemed yet":
+        if keys[key]["status"] == "not redeemed":
             # Assign the key to the user but do not store HWID yet
             keys[key] = {
+                "status": "redeemed",
                 "redeemed_by": f"@{user_id}",
                 "hwid": None  # HWID will be added later
             }
@@ -269,14 +277,10 @@ async def generatekeys(ctx, num_keys: int):
         return
 
     # Generate new keys
-    keys = load_json(KEYS_FILE)
     new_keys = generate_keys(num_keys)
 
-    # Merge new keys with existing keys
-    keys.update(new_keys)
-
-    # Save the updated key list
-    save_json(KEYS_FILE, keys)
+    # Save the new keys and reset the existing ones
+    save_json(KEYS_FILE, new_keys)
 
     # Send the generated keys to the admin
     for key in new_keys.keys():
@@ -289,6 +293,13 @@ async def dumpkeys(ctx):
     keys = load_json(KEYS_FILE)
     message = "\n".join([f"{key}: {value}" for key, value in keys.items()])
     await ctx.author.send(f"Here are the current keys:\n{message}")
+
+# Initialize JSON files with default data if necessary
+initialize_file(KEYS_FILE, generate_keys(4))
+initialize_file(USERS_FILE, {})
+initialize_file(HWIDS_FILE, {})
+initialize_file(COOLDOWNS_FILE, {})
+initialize_file(USED_KEYS_FILE, [])
 
 # Run the bot with your secret token
 if __name__ == "__main__":
