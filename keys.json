@@ -1,24 +1,32 @@
 {
     "78510449927": {
-        "redeemed_by": "@645601772047695893",
-        "hwid": "83DB047C-6AB6-4706-A64C-0F47208CEF92"
+        "status": "not redeemed"
     },
     "80574010824": {
-        "redeemed_by": "@645601772047695893",
-        "hwid": "83DB047C-6AB6-4706-A64C-0F47208CEF92"
+        "status": "not redeemed"
     },
     "23307902334": {
-        "redeemed_by": "@645601772047695893",
-        "hwid": "83DB047C-6AB6-4706-A64C-0F47208CEF92"
+        "status": "not redeemed"
     },
     "69957337130": {
-        "redeemed_by": "@645601772047695893",
-        "hwid": "83DB047C-6AB6-4706-A64C-0F47208CEF92"
+        "status": "not redeemed"
     },
-    "97471501392": "Key not redeemed yet",
-    "87899216829": "Key not redeemed yet",
-    "91978553010": "Key not redeemed yet",
-    "66343005557": "Key not redeemed yet",
-    "74146863710": "Key not redeemed yet",
-    "14971110976": "Key not redeemed yet"
+    "97471501392": {
+        "status": "not redeemed"
+    },
+    "87899216829": {
+        "status": "not redeemed"
+    },
+    "91978553010": {
+        "status": "not redeemed"
+    },
+    "66343005557": {
+        "status": "not redeemed"
+    },
+    "74146863710": {
+        "status": "not redeemed"
+    },
+    "14971110976": {
+        "status": "not redeemed"
+    }
 }
