@@ -1,3 +1,4 @@
+import os
 import discord
 from discord.ext import commands
 import json
@@ -223,119 +224,72 @@ async def resethwid(ctx):
     keys = load_json(KEYS_FILE)
     if user_id in keys:
         key = keys[user_id]
-        if isinstance(key, dict):
-            key['hwid'] = None  # Remove HWID for the key
+        if key in keys and isinstance(keys[key], dict):
+            keys[key]['hwid'] = None
+            save_json(KEYS_FILE, keys)
 
-    # Generate and store a new HWID for the user
-    new_hwid = generate_hwid(user_id)
-    user_hwids[user_id] = new_hwid
+    # Generate a new HWID for the user
+    hwid = generate_hwid(user_id)
+    user_hwids[user_id] = hwid
     save_json(HWIDS_FILE, user_hwids)
 
-    await ctx.send(f'Your HWID has been reset. New HWID is: {new_hwid}')
-
-@bot.command()
-@admin_required()
-async def resetcooldown(ctx, user: discord.Member):
-    """Allows an admin to reset the cooldown for a specified user."""
-    cooldowns = load_json(COOLDOWNS_FILE)
-
-    if str(user.id) in cooldowns:
-        del cooldowns[str(user.id)]
-        save_json(COOLDOWNS_FILE, cooldowns)
-        await ctx.send(f'Cooldown for {user.mention} has been reset.')
-    else:
-        await ctx.send(f'{user.mention} does not have a cooldown record.')
-
-@resetcooldown.error
-async def resetcooldown_error(ctx, error):
-    """Handles errors for the resetcooldown command."""
-    if isinstance(error, commands.CheckFailure):
-        await ctx.send("You do not have permission to use this command.")
+    await ctx.send(f'Your HWID has been reset to: {hwid}')
 
 @bot.command()
 @buyer_required()
-async def redeemkey(ctx, key: str):
-    """Command to redeem a key."""
+async def redeem(ctx, key: str):
+    """Redeem a script key."""
     user_id = str(ctx.author.id)
-    user_hwids = load_json(HWIDS_FILE)
 
-    keys = load_json(KEYS_FILE)
-
-    # Check if the key exists
-    if key not in keys:
-        await ctx.send(f'Key {key} does not exist.')
-        return
-
-    # Check if the key is already redeemed
-    key_data = keys[key]
-    if key_data != "Key not redeemed yet":
-        await ctx.send(f'Failed to redeem key {key}. It may be invalid or already used.')
-        return
-
-    # Redeem the key but do not store the HWID yet
     if redeem_key_without_hwid(key, user_id):
-        await ctx.send(f'Key {key} successfully redeemed! Awaiting HWID confirmation.')
+        await ctx.send(f'Successfully redeemed key {key}!')
     else:
-        await ctx.send(f'Failed to redeem key {key}. It may be invalid or already used.')
+        await ctx.send('Invalid or already redeemed key.')
 
 @bot.command()
 @admin_required()
-async def keyinfo(ctx, key: str):
-    """Admin command to view details of a specific key."""
-    keys = load_json(KEYS_FILE)
+async def resetcooldown(ctx, member: discord.Member):
+    """Allows admins to reset the HWID cooldown for a specific member."""
+    cooldowns = load_json(COOLDOWNS_FILE)
 
-    if key in keys:
-        key_data = keys[key]
-        if isinstance(key_data, dict):
-            redeemed_by = key_data["redeemed_by"]
-            hwid = key_data["hwid"]
-            hwid_status = hwid if hwid else "Not yet confirmed"
-            await ctx.send(f'Key: {key}\nRedeemed by: {redeemed_by}\nHWID: {hwid_status}')
-        else:
-            await ctx.send(f'Key: {key} has not been redeemed yet.')
+    user_id = str(member.id)
+    if user_id in cooldowns:
+        del cooldowns[user_id]
+        save_json(COOLDOWNS_FILE, cooldowns)
+        await ctx.send(f'{member.mention}\'s cooldown has been reset.')
     else:
-        await ctx.send(f'Key {key} does not exist.')
+        await ctx.send(f'{member.mention} has no cooldown to reset.')
 
 @bot.command()
 @admin_required()
-async def genkey(ctx, num_keys: int):
-    """Admin command to generate keys and store them in keys.json."""
+async def generatekeys(ctx, num_keys: int):
+    """Generates a number of random script keys."""
     if num_keys < 1:
-        await ctx.send('Please specify a positive number of keys to generate.')
+        await ctx.send("Please provide a valid number of keys to generate.")
         return
-
-    # Load existing keys from the file
-    keys = load_json(KEYS_FILE)
 
     # Generate new keys
+    keys = load_json(KEYS_FILE)
     new_keys = generate_keys(num_keys)
+
+    # Merge new keys with existing keys
     keys.update(new_keys)
 
-    # Save updated keys to the file
+    # Save the updated key list
     save_json(KEYS_FILE, keys)
 
-    await ctx.send(f'Successfully generated {num_keys} keys.')
+    # Send the generated keys to the admin
+    for key in new_keys.keys():
+        await ctx.author.send(f"Generated key: {key}")
 
 @bot.command()
 @admin_required()
-async def viewusedkeys(ctx):
-    """Admin command to view all used keys."""
-    used_keys = load_json(USED_KEYS_FILE)
-    if not used_keys:
-        await ctx.send('No keys have been used yet.')
-        return
+async def dumpkeys(ctx):
+    """Sends the list of all current keys to the admin."""
+    keys = load_json(KEYS_FILE)
+    message = "\n".join([f"{key}: {value}" for key, value in keys.items()])
+    await ctx.author.send(f"Here are the current keys:\n{message}")
 
-    # Format the keys into a string with each key on a new line
-    used_keys_str = '\n'.join(used_keys)
-    await ctx.send(f'Used keys:\n{used_keys_str}')
-
-# Initialize keys and used keys if needed
-if not load_json(KEYS_FILE):
-    keys = generate_keys(10)  # Generate 10 keys as an example
-    save_json(KEYS_FILE, keys)
-
-if not load_json(USED_KEYS_FILE):
-    save_json(USED_KEYS_FILE, [])  # Initialize with an empty list
-
-# Replace 'YOUR_BOT_TOKEN' with your actual bot token
-bot.run("MTI3MzAyODg1ODkzNzA4MTg3OA.G10cYe.TvM6eKcaayg3kWICrI5sgFjJMiPeBt3Cp0pAPs")
+# Run the bot with your secret token
+if __name__ == "__main__":
+    bot.run(os.environ['DISCORD_BOT_KEY'])
