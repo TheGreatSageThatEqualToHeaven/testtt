@@ -1,4 +1,3 @@
-
 import os
 import discord
 from discord.ext import commands
@@ -290,6 +289,20 @@ async def dumpkeys(ctx):
     keys = load_json(KEYS_FILE)
     message = "\n".join([f"{key}: {value}" for key, value in keys.items()])
     await ctx.author.send(f"Here are the current keys:\n{message}")
+
+@bot.command()
+@admin_required()
+async def resetkeys(ctx):
+    """Reset all keys to 'not redeemed' status."""
+    keys = load_json(KEYS_FILE)
+
+    for key in keys:
+        keys[key] = {
+            "status": "not redeemed"
+        }
+
+    save_json(KEYS_FILE, keys)
+    await ctx.send('All keys have been reset to "not redeemed".')
 
 # Run the bot with your secret token
 if __name__ == "__main__":
