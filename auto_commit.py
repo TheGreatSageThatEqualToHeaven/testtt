@@ -2,7 +2,7 @@ import os
 import time
 
 # Time interval in seconds (e.g., 600 seconds = 10 minutes)
-time_interval = 30
+time_interval = 20
 
 def git_push():
     try:
